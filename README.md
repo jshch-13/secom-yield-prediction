@@ -247,8 +247,9 @@ python dashboard/app.py
 
 KPI 카드, 실제/예측 라벨·오분류 유형·Fail Probability·센서 필터, 6종 차트(센서 분포, Fail Probability 분포,
 Confusion Matrix, Feature Importance, 2-센서 Scatter, Threshold-Performance 곡선), CSV 다운로드가 가능한 상세
-테이블을 제공합니다. 자세한 사용법은 [`dashboard/README.md`](dashboard/README.md) 참고. 스크린샷은
-`dashboard/screenshots/`에 추가할 수 있습니다 (기본 저장소에는 포함되어 있지 않음).
+테이블을 제공합니다. 자세한 사용법과 스크린샷은 [`dashboard/README.md`](dashboard/README.md) 참고.
+
+![SECOM Yield Prediction Analytics Dashboard](dashboard/screenshots/dashboard_top.png)
 
 ### GitHub Pages (선택 사항)
 
@@ -414,8 +415,3 @@ secom-yield-prediction/
 > 튜닝한 뒤 threshold를 0.05~0.95로 스윕해 Recall/Precision/F1 트레이드오프 표를 만들었다.
 > **(R)** 최종적으로 PR-AUC 기준 최상위 모델을 선정하고, 그 근거와 비즈니스 목적별 threshold 선택 논리를
 > README/보고서로 문서화했으며, 결과를 Spotfire에서 바로 활용 가능한 CSV로 연계했다.
-
----
-
-*이 프로젝트는 공개·익명화된 SECOM 데이터셋을 사용한 포트폴리오/학습 목적의 분석이며, 실제 반도체 제조사의
-Fab 데이터나 공정 정보를 포함하지 않습니다.*

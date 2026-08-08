@@ -46,14 +46,12 @@ http://127.0.0.1:8050
 
 ## 스크린샷
 
-`docs/dashboard_and_simulation_scope.md` 또는 이 문서에 대시보드 스크린샷을 추가하려면, 실행 중인 화면을
-캡처하여 아래 위치에 저장한 뒤 이미지 링크를 추가하세요.
+실제 SECOM 데이터(`data/processed/secom_spotfire_master.csv`)로 대시보드를 로컬 실행한 화면입니다.
 
-```
-dashboard/screenshots/dashboard_overview.png
-```
+![SECOM Yield Prediction Analytics Dashboard - 상단 화면](screenshots/dashboard_top.png)
 
-(스크린샷 파일은 저장소에 기본 포함되어 있지 않습니다. 로컬에서 캡처해 추가해주세요.)
+전체 페이지(필터 + 6개 차트 + 상세 테이블 포함) 스크린샷은
+[`screenshots/dashboard_overview.png`](screenshots/dashboard_overview.png)에서 확인할 수 있습니다.
 
 ## 주의사항
 
