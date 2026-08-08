@@ -1,0 +1,251 @@
+"""Build the optional GitHub Pages site under docs/.
+
+Copies the four SECOM-based interactive Plotly HTML files from
+``outputs/interactive/`` (real SECOM data), builds one additional
+interactive Plotly wafer-map HTML from the **synthetic** demo dataset
+(clearly and repeatedly marked as synthetic), and writes an ``index.html``
+that links to all five with an explicit real-vs-synthetic notice.
+
+This script does NOT push to GitHub or change repository settings -- see
+the README for how to enable Pages manually.
+
+Run as a script:
+
+    python docs/build_pages_site.py
+"""
+
+from __future__ import annotations
+
+import shutil
+import sys
+from pathlib import Path
+
+import pandas as pd
+import plotly.graph_objects as go
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from simulations.generate_synthetic_wafer_data import (  # noqa: E402
+    DEFAULT_OUTPUT_PATH,
+    DEFECT_PATTERNS,
+    WAFER_RADIUS_MM,
+    generate_dataset,
+)
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DOCS_DIR = PROJECT_ROOT / "docs"
+INTERACTIVE_DIR = PROJECT_ROOT / "outputs" / "interactive"
+
+SECOM_HTML_FILES = (
+    "interactive_feature_distribution.html",
+    "interactive_scatter_matrix.html",
+    "prediction_probability_dashboard.html",
+    "feature_importance.html",
+)
+
+
+def copy_secom_htmls() -> list[str]:
+    """Copy the real-SECOM interactive HTMLs from outputs/interactive/ into docs/.
+
+    Returns:
+        List of filenames actually copied (missing source files are skipped
+        with a warning printed, so a partial ``outputs/interactive/`` still
+        produces a usable, if incomplete, docs/ site).
+    """
+    copied = []
+    for name in SECOM_HTML_FILES:
+        src = INTERACTIVE_DIR / name
+        if not src.exists():
+            print(f"warning: {src} not found; run dashboard/build_static_reports.py first. Skipping.")
+            continue
+        shutil.copy2(src, DOCS_DIR / name)
+        copied.append(name)
+    return copied
+
+
+def build_synthetic_wafer_map_html(output_path: Path) -> Path:
+    """Build an interactive, pattern-selectable synthetic wafer-map HTML page.
+
+    Args:
+        output_path: Destination HTML path (``docs/synthetic_wafer_map_demo.html``).
+
+    Returns:
+        The ``output_path`` written.
+    """
+    df = pd.read_csv(DEFAULT_OUTPUT_PATH) if DEFAULT_OUTPUT_PATH.exists() else generate_dataset()
+
+    fig = go.Figure()
+    patterns_present = [p for p in DEFECT_PATTERNS if p in df["defect_pattern"].unique()]
+    for i, pattern in enumerate(patterns_present):
+        group = df[df["defect_pattern"] == pattern]
+        first_wafer_id = group["wafer_id"].iloc[0]
+        wafer_df = group[group["wafer_id"] == first_wafer_id]
+        for status, color in [("PASS", "#2E9E5B"), ("FAIL", "#D64545")]:
+            sub = wafer_df[wafer_df["status"] == status]
+            fig.add_trace(
+                go.Scatter(
+                    x=sub["die_x"],
+                    y=sub["die_y"],
+                    mode="markers",
+                    marker=dict(size=5, color=color),
+                    name=status,
+                    legendgroup=status,
+                    showlegend=True,
+                    visible=(i == 0),
+                    hovertemplate=f"pattern: {pattern}<br>status: {status}<br>x=%{{x}}<br>y=%{{y}}<extra></extra>",
+                )
+            )
+
+    theta = [i * 3.6 for i in range(101)]
+    import math
+
+    boundary_x = [WAFER_RADIUS_MM * math.cos(math.radians(t)) for t in theta]
+    boundary_y = [WAFER_RADIUS_MM * math.sin(math.radians(t)) for t in theta]
+    fig.add_trace(
+        go.Scatter(
+            x=boundary_x,
+            y=boundary_y,
+            mode="lines",
+            line=dict(color="black", width=1.5),
+            name="Wafer boundary",
+            showlegend=False,
+            hoverinfo="skip",
+        )
+    )
+
+    buttons = []
+    n_patterns = len(patterns_present)
+    for i, pattern in enumerate(patterns_present):
+        visible = [False] * (n_patterns * 2) + [True]  # boundary trace always visible
+        visible[i * 2] = True
+        visible[i * 2 + 1] = True
+        buttons.append(
+            dict(
+                label=pattern,
+                method="update",
+                args=[{"visible": visible}, {"title": f"[SYNTHETIC DEMO] Wafer Map - {pattern}"}],
+            )
+        )
+
+    fig.update_layout(
+        updatemenus=[dict(buttons=buttons, direction="down", x=1.0, xanchor="right", y=1.15, yanchor="top")],
+        title=dict(text=f"[SYNTHETIC DEMO] Wafer Map - {patterns_present[0]}", y=0.95),
+        xaxis_title="die_x (mm)",
+        yaxis_title="die_y (mm)",
+        template="plotly_white",
+        height=740,
+        width=780,
+        margin=dict(t=140, b=110, l=70, r=70),
+    )
+    fig.update_yaxes(scaleanchor="x", scaleratio=1)
+    fig.add_annotation(
+        text=(
+            "Synthetic data - Not derived from SECOM or production Fab data.<br>"
+            "Generated by simulations/generate_synthetic_wafer_data.py from a fixed random seed."
+        ),
+        xref="paper",
+        yref="paper",
+        x=0.5,
+        y=-0.14,
+        showarrow=False,
+        font=dict(size=11, color="#B00020"),
+    )
+    fig.write_html(output_path, include_plotlyjs="cdn", full_html=True)
+    return output_path
+
+
+def build_index_html(secom_files: list[str], synthetic_file: str) -> Path:
+    """Write ``docs/index.html`` linking to every generated page.
+
+    Args:
+        secom_files: Filenames of the real-SECOM HTML pages actually present.
+        synthetic_file: Filename of the synthetic wafer-map demo HTML.
+
+    Returns:
+        The path to the written ``index.html``.
+    """
+    secom_links = "\n".join(
+        f'<li><a href="{f}">{f}</a></li>' for f in secom_files
+    ) or "<li><em>Not yet generated -- run dashboard/build_static_reports.py</em></li>"
+
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SECOM Yield Prediction - Interactive Reports</title>
+<style>
+body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1F2430; }}
+h1 {{ font-size: 22px; }}
+.notice {{ background: #FFF4E5; border: 1px solid #F0B429; border-radius: 8px; padding: 12px 16px; margin: 16px 0; font-size: 13px; }}
+.section {{ margin-top: 28px; }}
+.badge {{ display: inline-block; background: #D64545; color: white; font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-left: 6px; }}
+a {{ color: #2F6FED; }}
+footer {{ margin-top: 40px; font-size: 12px; color: #5B6472; }}
+</style>
+</head>
+<body>
+<h1>SECOM Yield Prediction &mdash; Interactive Reports</h1>
+<p>공개·익명화된 UCI/Kaggle SECOM 데이터셋 기반 반도체 공정 센서 데이터 불량 예측 프로젝트의
+인터랙티브 산출물 모음입니다.</p>
+
+<div class="notice">
+<strong>실제 SECOM 분석과 합성(synthetic) 시뮬레이션은 서로 다른 산출물입니다.</strong><br>
+아래 "SECOM Analysis" 섹션의 4개 리포트는 실제 SECOM 센서 데이터와 학습된 모델 결과를 사용합니다.
+"Synthetic Wafer Map Demo"는 SECOM과 무관하게 코드로 생성한 가상 좌표 데이터이며, UI/엔지니어링
+역량 시연 목적입니다. 자세한 구분은
+<a href="https://github.com/">GitHub repository</a>의
+<code>docs/dashboard_and_simulation_scope.md</code>를 참고하세요.
+</div>
+
+<div class="section">
+<h2>SECOM Analysis (real data)</h2>
+<ul>
+{secom_links}
+</ul>
+</div>
+
+<div class="section">
+<h2>Synthetic Wafer Map Demo <span class="badge">SYNTHETIC</span></h2>
+<ul>
+<li><a href="{synthetic_file}">{synthetic_file}</a> &mdash; not derived from SECOM or production Fab data</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Dash Dashboard</h2>
+<p>Plotly Dash 기반 대화형 대시보드(<code>dashboard/app.py</code>)는 GitHub Pages 같은 정적 호스팅으로는
+제공되지 않습니다. 로컬 실행(<code>python dashboard/app.py</code>) 또는 별도의 서버 배포가 필요합니다.</p>
+</div>
+
+<footer>
+Repository: <code>&lt;GITHUB_REPOSITORY_URL_PLACEHOLDER&gt;</code><br>
+Public anonymized SECOM dataset. Sensor IDs are anonymized; this project does not identify real Fab equipment,
+chambers, or processes.
+</footer>
+</body>
+</html>
+"""
+    index_path = DOCS_DIR / "index.html"
+    index_path.write_text(html, encoding="utf-8")
+    return index_path
+
+
+def main() -> None:
+    """Build the full docs/ GitHub Pages site (copy SECOM HTMLs + build synthetic + index)."""
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    secom_files = copy_secom_htmls()
+    synthetic_path = build_synthetic_wafer_map_html(DOCS_DIR / "synthetic_wafer_map_demo.html")
+    index_path = build_index_html(secom_files, synthetic_path.name)
+    print(f"wrote {index_path}")
+    print(f"wrote {synthetic_path}")
+    for f in secom_files:
+        print(f"copied {DOCS_DIR / f}")
+    print(
+        "\nGitHub Pages was NOT enabled and nothing was pushed. "
+        "See README.md for how to enable Pages manually (Settings > Pages > "
+        "Deploy from branch > /docs)."
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,60 @@
+{
+  "n_rows": 1567,
+  "n_columns": 595,
+  "n_feature_columns": 590,
+  "n_duplicate_feature_rows": 0,
+  "fail_rate": 0.06636885768985322,
+  "label_counts": {
+    "Pass": 1463,
+    "Fail": 104
+  },
+  "missing_ratio_summary": {
+    "mean": 0.04537548808583822,
+    "median": 0.0038289725590299937,
+    "max": 0.9119336311423102
+  },
+  "missing_ratio_threshold_comparison": [
+    {
+      "threshold": 0.4,
+      "n_features_dropped": 32,
+      "n_features_kept": 558
+    },
+    {
+      "threshold": 0.5,
+      "n_features_dropped": 28,
+      "n_features_kept": 562
+    },
+    {
+      "threshold": 0.7,
+      "n_features_dropped": 8,
+      "n_features_kept": 582
+    }
+  ],
+  "n_constant_or_low_variance_features": 127,
+  "n_high_correlation_pairs": 329,
+  "high_correlation_threshold": 0.95,
+  "time_structure": {
+    "is_monotonic_time": false,
+    "time_span_days": 337.0,
+    "fail_rate_by_month": {
+      "2008-01": 0.058823529411764705,
+      "2008-02": 0.05102040816326531,
+      "2008-03": 0.02,
+      "2008-04": 0.061224489795918366,
+      "2008-05": 0.11290322580645161,
+      "2008-06": 0.08955223880597014,
+      "2008-07": 0.14035087719298245,
+      "2008-08": 0.08067940552016985,
+      "2008-09": 0.04116222760290557,
+      "2008-10": 0.04878048780487805,
+      "2008-11": 0.05714285714285714,
+      "2008-12": 0.0
+    },
+    "fail_rate_std_across_months": 0.036724103424010716
+  },
+  "pca_explained_variance_ratio_2d": [
+    0.05558342755872536,
+    0.036420598101640965
+  ],
+  "notes": "All feature IDs are anonymized SECOM sensor variables from a public dataset. No physical equipment/chamber/process mapping exists or is assumed in this project."
+}
